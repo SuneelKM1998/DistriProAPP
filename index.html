@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DistriPro | Master Distribution Suite</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        [x-cloak] { display: none !important; }
+        .bg-main { background-color: #fefce8; } 
+        .bg-sky-card { background-color: #e0f2fe; } 
+        .accent-border { border-color: #bae6fd; }
+    </style>
+</head>
+<body class="bg-main text-slate-800 min-h-screen font-sans" x-data="{ 
+    page: 'login', 
+    userRole: '',
+    username: '', 
+    password: '',
+    selectedAnalyticMovie: '',
+    
+    masterTheaters: {
+        'S2': { 'Screen 1': 563, 'Screen 2': 626, 'Screen 3': 333 },
+        'Mall': { 'Screen 1': 236, 'Screen 2': 131, 'Screen 3': 132, 'Screen 4': 238, 'Screen 5': 271 },
+        'Rain': { 'Screen 1': 313, 'Screen 2': 314, 'Screen 3': 314, 'Screen 4': 381 },
+        'Siri': { 'Screen 1': 385, 'Screen 2': 270, 'Screen 3': 69, 'Screen 4': 65 }
+    },
+
+    reports: [], 
+    newEntry: { id: null, city: '', theater: '', screen: '', movie: '', time: '', slot: '', booked: 0, total: 0, date: '' },
+
+    handleLogin() {
+        if(this.username === 'admin' && this.password === '8019589448') { this.userRole = 'admin'; this.page = 'dashboard'; }
+        else if(this.username === 'user' && this.password === '123456789') { this.userRole = 'user'; this.page = 'dashboard'; }
+        else { alert('Invalid Credentials'); }
+    },
+
+    updateCapacity() {
+        if(this.newEntry.theater && this.newEntry.screen) {
+            this.newEntry.total = this.masterTheaters[this.newEntry.theater][this.newEntry.screen];
+        }
+    },
+
+    updateSlot() {
+        if(!this.newEntry.time) return;
+        let hour = parseInt(this.newEntry.time.split(':')[0]);
+        if(hour >= 6 && hour < 10) this.newEntry.slot = 'Early Morning (6-10AM)';
+        else if(hour >= 10 && hour < 14) this.newEntry.slot = 'Morning Show (10-2PM)';
+        else if(hour >= 14 && hour < 18) this.newEntry.slot = 'Matinee (2-6PM)';
+        else if(hour >= 18 && hour < 22) this.newEntry.slot = 'First Show (6-10PM)';
+        else this.newEntry.slot = 'Second Show (10PM-1AM)';
+    },
+
+    saveEntry() {
+        if(!this.newEntry.movie || !this.newEntry.booked || !this.newEntry.date || !this.newEntry.time) {
+            return alert('Please fill all details (Date, Time, Movie, and Seats)');
+        }
+
+        // SMART UPDATE LOGIC
+        // Check if a show with same Date, Theater, Screen, and Time already exists
+        let existingIndex = this.reports.findIndex(r => 
+            r.date === this.newEntry.date && 
+            r.theater === this.newEntry.theater && 
+            r.screen === this.newEntry.screen && 
+            r.time === this.newEntry.time
+        );
+
+        if (existingIndex !== -1) {
+            // Update existing record
+            this.reports[existingIndex].booked = this.newEntry.booked;
+            this.reports[existingIndex].movie = this.newEntry.movie; // Update movie name too in case of change
+            alert('Existing show found! Seat count has been updated.');
+        } else {
+            // Create new record
+            this.newEntry.id = Date.now();
+            this.reports.unshift({...this.newEntry});
+            alert('New show record created.');
+        }
+
+        // Reset Entry Form
+        this.newEntry = { id: null, city: '', theater: '', screen: '', movie: '', time: '', slot: '', booked: 0, total: 0, date: '' };
+    },
+
+    deleteEntry(id) {
+        if(confirm('Delete record?')) this.reports = this.reports.filter(r => r.id !== id);
+    },
+
+    get movieStats() {
+        if(!this.selectedAnalyticMovie) return { booked: 0, screens: 0, total: 0 };
+        let filtered = this.reports.filter(r => r.movie === this.selectedAnalyticMovie);
+        return {
+            booked: filtered.reduce((acc, curr) => acc + parseInt(curr.booked), 0),
+            total: filtered.reduce((acc, curr) => acc + parseInt(curr.total), 0),
+            screens: filtered.length
+        }
+    }
+}">
+
+    <nav class="bg-sky-500 text-white shadow-lg p-4 sticky top-0 z-50">
+        <div class="container mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-2">
+                <i class="fa-solid fa-film text-yellow-300 text-2xl"></i>
+                <h1 class="text-2xl font-black tracking-tighter uppercase">DistriPro</h1>
+            </div>
+            <div class="flex items-center gap-4">
+                <span class="bg-white/20 px-3 py-1 rounded-full text-[10px] font-bold uppercase" x-text="userRole"></span>
+                <button @click="page = 'login'" class="bg-yellow-400 text-sky-900 px-4 py-1 rounded-lg font-bold text-sm">Logout</button>
+            </div>
+        </div>
+    </nav>
+
+    <div x-show="page === 'login'" class="flex items-center justify-center pt-24 px-4">
+        <div class="bg-white p-8 rounded-3xl shadow-xl w-full max-w-md border-b-8 border-sky-400">
+            <h2 class="text-3xl font-black text-center text-sky-600 mb-8">SECURE LOGIN</h2>
+            <div class="space-y-4">
+                <input x-model="username" type="text" placeholder="Username" class="w-full p-4 bg-sky-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-sky-400">
+                <input x-model="password" type="password" placeholder="Password" class="w-full p-4 bg-sky-50 border-none rounded-2xl outline-none focus:ring-2 focus:ring-sky-400">
+                <button @click="handleLogin()" class="w-full bg-sky-500 text-white font-black py-4 rounded-2xl shadow-lg hover:bg-sky-600 transition uppercase tracking-widest">Connect to Server</button>
+            </div>
+        </div>
+    </div>
+
+    <main x-show="page === 'dashboard'" x-cloak class="container mx-auto p-4 md:p-8 space-y-8">
+        
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="bg-sky-card p-6 rounded-3xl border-2 accent-border shadow-sm">
+                <h4 class="text-xs font-bold text-sky-600 uppercase mb-4">Master Selection</h4>
+                <select x-model="selectedAnalyticMovie" class="w-full p-3 rounded-xl border-none shadow-sm outline-none">
+                    <option value="">Choose Movie...</option>
+                    <template x-for="movie in [...new Set(reports.map(r => r.movie))]">
+                        <option :value="movie" x-text="movie"></option>
+                    </template>
+                </select>
+            </div>
+            <div class="bg-yellow-100 p-6 rounded-3xl border-2 border-yellow-200 shadow-sm flex flex-col justify-center">
+                <p class="text-[10px] font-bold text-yellow-700 uppercase">Total Tickets Sold</p>
+                <h2 class="text-4xl font-black text-sky-900" x-text="movieStats.booked">0</h2>
+            </div>
+            <div class="bg-white p-6 rounded-3xl border-2 border-slate-100 shadow-sm flex flex-col justify-center">
+                <p class="text-[10px] font-bold text-slate-400 uppercase">Total Active Screens</p>
+                <h2 class="text-4xl font-black text-slate-800" x-text="movieStats.screens">0</h2>
+            </div>
+        </div>
+
+        <div x-show="userRole === 'admin'" class="bg-white p-8 rounded-3xl shadow-sm border border-slate-100">
+            <h3 class="font-black text-sky-600 mb-6 flex items-center gap-2 uppercase tracking-widest text-sm">
+                <i class="fa-solid fa-sync"></i> Data Entry / Update
+            </h3>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="flex flex-col">
+                    <label class="text-[9px] font-bold mb-1 ml-1 text-slate-400 uppercase">Date</label>
+                    <input x-model="newEntry.date" type="date" class="bg-sky-50 p-3 rounded-xl outline-none">
+                </div>
+                
+                <div class="flex flex-col">
+                    <label class="text-[9px] font-bold mb-1 ml-1 text-slate-400 uppercase">Theater</label>
+                    <select x-model="newEntry.theater" @change="updateCapacity()" class="bg-sky-50 p-3 rounded-xl outline-none">
+                        <option value="">Select Theater</option>
+                        <template x-for="t in Object.keys(masterTheaters)">
+                            <option :value="t" x-text="t"></option>
+                        </template>
+                    </select>
+                </div>
+
+                <div class="flex flex-col">
+                    <label class="text-[9px] font-bold mb-1 ml-1 text-slate-400 uppercase">Screen</label>
+                    <select x-model="newEntry.screen" @change="updateCapacity()" class="bg-sky-50 p-3 rounded-xl outline-none">
+                        <option value="">Select Screen</option>
+                        <template x-if="newEntry.theater">
+                            <template x-for="s in Object.keys(masterTheaters[newEntry.theater])">
+                                <option :value="s" x-text="s"></option>
+                            </template>
+                        </template>
+                    </select>
+                </div>
+
+                <div class="flex flex-col">
+                    <label class="text-[9px] font-bold mb-1 ml-1 text-slate-400 uppercase">Show Time</label>
+                    <input x-model="newEntry.time" @change="updateSlot()" type="time" class="bg-sky-50 p-3 rounded-xl outline-none">
+                </div>
+
+                <div class="flex flex-col">
+                    <label class="text-[9px] font-bold mb-1 ml-1 text-slate-400 uppercase">City</label>
+                    <input x-model="newEntry.city" type="text" placeholder="City Name" class="bg-sky-50 p-3 rounded-xl outline-none">
+                </div>
+
+                <div class="flex flex-col">
+                    <label class="text-[9px] font-bold mb-1 ml-1 text-slate-400 uppercase">Movie</label>
+                    <input x-model="newEntry.movie" type="text" placeholder="Movie Name" class="bg-sky-50 p-3 rounded-xl outline-none">
+                </div>
+                
+                <div class="p-3 bg-yellow-50 rounded-xl">
+                    <span class="text-[9px] font-bold block">Capacity</span>
+                    <input x-model="newEntry.total" type="number" class="bg-transparent font-bold text-lg w-full outline-none">
+                </div>
+
+                <div class="p-3 bg-sky-100 rounded-xl">
+                    <span class="text-[9px] font-bold block">Actual Booked</span>
+                    <input x-model="newEntry.booked" type="number" class="bg-transparent font-black text-lg w-full outline-none text-sky-700">
+                </div>
+
+                <button @click="saveEntry()" class="md:col-span-4 bg-sky-500 text-white font-black py-4 rounded-2xl hover:bg-sky-600 transition shadow-md uppercase tracking-widest text-sm mt-2">
+                    Sync / Update Show Data
+                </button>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-3xl shadow-sm border border-slate-100 overflow-hidden">
+            <div class="p-6 bg-slate-50 border-b flex justify-between items-center">
+                <h2 class="font-black text-slate-800 uppercase text-xs tracking-widest">Live Performance Table</h2>
+            </div>
+            <table class="w-full text-left">
+                <thead class="bg-slate-50 text-[10px] font-bold text-slate-400 uppercase">
+                    <tr>
+                        <th class="p-4">Date & Time</th>
+                        <th class="p-4">Theatre & Screen</th>
+                        <th class="p-4">Movie & Slot</th>
+                        <th class="p-4">Occupancy</th>
+                        <th class="p-4">Action</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                    <template x-for="r in reports">
+                        <tr class="hover:bg-sky-50/50 transition">
+                            <td class="p-4">
+                                <div class="text-[11px] font-bold text-slate-800" x-text="r.date"></div>
+                                <div class="text-[10px] text-slate-400" x-text="r.time"></div>
+                            </td>
+                            <td class="p-4">
+                                <div class="font-bold text-slate-800" x-text="r.theater"></div>
+                                <div class="text-[10px] text-sky-500 font-bold" x-text="r.city + ' - ' + r.screen"></div>
+                            </td>
+                            <td class="p-4">
+                                <div class="font-black text-slate-800" x-text="r.movie"></div>
+                                <div class="text-[10px] text-slate-400 font-bold" x-text="r.slot"></div>
+                            </td>
+                            <td class="p-4">
+                                <div class="text-sm font-black text-sky-600" x-text="r.booked + ' / ' + r.total"></div>
+                                <div class="w-full h-1.5 bg-slate-100 rounded-full mt-1 overflow-hidden max-w-[100px]">
+                                    <div class="h-full bg-yellow-400" :style="`width: ${(r.booked/r.total)*100}%`"></div>
+                                </div>
+                            </td>
+                            <td class="p-4">
+                                <button x-show="userRole === 'admin'" @click="deleteEntry(r.id)" class="text-slate-300 hover:text-red-500"><i class="fa-solid fa-trash-can"></i></button>
+                            </td>
+                        </tr>
+                    </template>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="bg-sky-card p-8 rounded-3xl border border-sky-100">
+            <h3 class="text-sky-900 font-black mb-6 italic uppercase text-xs">Historical Day-Wise Summary</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
+                <template x-for="day in [...new Set(reports.map(r => r.date))]">
+                    <div class="bg-white p-4 rounded-2xl shadow-sm text-center border-b-4 border-yellow-400">
+                        <p class="text-[10px] font-bold text-slate-400" x-text="day"></p>
+                        <h4 class="text-2xl font-black text-sky-600" x-text="reports.filter(r => r.date === day).reduce((a,b) => a + parseInt(b.booked), 0)"></h4>
+                        <p class="text-[9px] font-bold text-slate-400" x-text="reports.filter(r => r.date === day).length + ' Active Screens'"></p>
+                    </div>
+                </template>
+            </div>
+        </div>
+
+    </main>
+</body>
+</html>
