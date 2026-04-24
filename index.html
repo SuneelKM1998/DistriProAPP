@@ -3,339 +3,257 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DistriPro | Sunset Edition</title>
+    <title>DistriPro | Enterprise Distribution Suite</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800&display=swap" rel="stylesheet">
     <style>
+        body { font-family: 'Inter', sans-serif; }
         [x-cloak] { display: none !important; }
-        .bg-gradient-main { background: linear-gradient(135deg, #fff7ed 0%, #ffedd5 100%); }
-        .cinema-gradient { background: linear-gradient(to right, #f59e0b, #ea580c); }
-        .glass-card { background: rgba(255, 255, 255, 0.8); backdrop-filter: blur(10px); }
-        .movie-banner { 
-            background: linear-gradient(rgba(0,0,0,0.6), rgba(0,0,0,0.6)), url('https://images.unsplash.com/photo-1489599849927-2ee91cede3ba?auto=format&fit=crop&w=1200&q=80');
-            background-size: cover; background-position: center;
-        }
+        .sidebar-bg { background: #0f172a; transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+        .active-link { background: #6366f1; color: white; box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3); }
+        .movie-card:hover { transform: translateY(-5px); transition: all 0.3s ease; }
     </style>
 </head>
-<body class="bg-gradient-main text-slate-800 min-h-screen font-sans" x-data="{ 
-    page: 'login', 
-    userRole: '',
-    username: '', 
-    password: '',
-    selectedAnalyticMovie: '',
-    isLoading: false,
-    
-    masterTheaters: {
-        'S2': { 'Screen 1': 563, 'Screen 2': 626, 'Screen 3': 333 },
-        'Mall': { 'Screen 1': 236, 'Screen 2': 131, 'Screen 3': 132, 'Screen 4': 238, 'Screen 5': 271 },
-        'Rain': { 'Screen 1': 313, 'Screen 2': 314, 'Screen 3': 314, 'Screen 4': 381 },
-        'Siri': { 'Screen 1': 385, 'Screen 2': 270, 'Screen 3': 69, 'Screen 4': 65 }
-    },
+<body class="bg-slate-50 text-slate-900 min-h-screen flex" x-data="appHandler()" x-init="initApp()">
 
-    reports: [], 
-    newEntry: { id: null, city: '', theater: '', screen: '', movie: '', time: '', slot: '', booked: 0, total: 0, date: '' },
-
-    async loadData() {
-        this.isLoading = true;
-        try {
-            const response = await fetch('https://distriproapi-heghfdc4auh3gtdm.eastus-01.azurewebsites.net/api/syncdata');
-            if (response.ok) {
-                this.reports = await response.json();
-            }
-        } catch (err) {
-            console.error('Azure Load Failed');
-        } finally { this.isLoading = false; }
-    },
-
-    handleLogin() {
-        if(this.username === 'admin' && this.password === '8019589448') { 
-            this.userRole = 'admin'; this.page = 'dashboard'; this.loadData();
-        } else if(this.username === 'user' && this.password === '123456789') { 
-            this.userRole = 'user'; this.page = 'dashboard'; this.loadData();
-        } else { alert('Invalid Credentials'); }
-    },
-
-    updateCapacity() {
-        if(this.newEntry.theater && this.newEntry.screen) {
-            this.newEntry.total = this.masterTheaters[this.newEntry.theater][this.newEntry.screen];
-        }
-    },
-
-    updateSlot() {
-        if(!this.newEntry.time) return;
-        let hour = parseInt(this.newEntry.time.split(':')[0]);
-        if(hour >= 6 && hour < 10) this.newEntry.slot = 'Early Morning (6-10AM)';
-        else if(hour >= 10 && hour < 14) this.newEntry.slot = 'Morning Show (10-2PM)';
-        else if(hour >= 14 && hour < 18) this.newEntry.slot = 'Matinee (2-6PM)';
-        else if(hour >= 18 && hour < 22) this.newEntry.slot = 'First Show (6-10PM)';
-        else this.newEntry.slot = 'Second Show (10PM-1AM)';
-    },
-
-    async saveEntry() {
-        if(!this.newEntry.movie || !this.newEntry.booked || !this.newEntry.date || !this.newEntry.time) {
-            return alert('Fill all details reyy!');
-        }
-
-        try {
-            const response = await fetch('https://distriproapi-heghfdc4auh3gtdm.eastus-01.azurewebsites.net/api/syncdata', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(this.newEntry)
-            });
-
-            if(response.ok) {
-                alert('Data Synced to Azure Cloud!');
-                await this.loadData();
-                this.newEntry = { id: null, city: '', theater: '', screen: '', movie: '', time: '', slot: '', booked: 0, total: 0, date: '' };
-            }
-        } catch (err) { alert('Sync Failed reyy!'); }
-    },
-
-    deleteEntry(id) {
-        if(confirm('Delete record?')) this.reports = this.reports.filter(r => r.id !== id);
-    },
-
-    get movieStats() {
-        if(!this.selectedAnalyticMovie) return { booked: 0, screens: 0, total: 0 };
-        let filtered = this.reports.filter(r => r.movie === this.selectedAnalyticMovie);
-        return {
-            booked: filtered.reduce((acc, curr) => acc + parseInt(curr.booked), 0),
-            total: filtered.reduce((acc, curr) => acc + parseInt(curr.total), 0),
-            screens: filtered.length
-        }
-    }
-}">
-
-    <nav class="cinema-gradient text-white shadow-xl p-4 sticky top-0 z-50">
-        <div class="container mx-auto flex justify-between items-center">
-            <div class="flex items-center gap-2">
-                <i class="fa-solid fa-fire-alt text-yellow-300 text-3xl animate-pulse"></i>
-                <h1 class="text-2xl font-black tracking-tighter uppercase italic">DistriPro <span class="text-yellow-200">Ultra</span></h1>
-            </div>
-            <div class="flex items-center gap-4">
-                <div x-show="isLoading" class="animate-spin h-5 w-5 border-2 border-white border-t-transparent rounded-full"></div>
-                <span class="bg-black/20 px-3 py-1 rounded-full text-[10px] font-bold uppercase" x-text="userRole"></span>
-                <button @click="page = 'login'" class="bg-white text-orange-600 px-4 py-1 rounded-lg font-bold text-sm shadow-md">Logout</button>
-            </div>
-        </div>
-    </nav>
-
-    <div x-show="page === 'login'" class="flex items-center justify-center pt-24 px-4">
-        <div class="bg-white p-10 rounded-[3rem] shadow-2xl w-full max-w-md border-b-[12px] border-orange-500">
-            <div class="text-center mb-8">
-                <i class="fa-solid fa-ticket-alt text-orange-500 text-5xl mb-4"></i>
-                <h2 class="text-4xl font-black text-slate-800">WELCOME</h2>
-                <p class="text-orange-400 font-bold text-xs uppercase tracking-widest">Cinema Distribution Portal</p>
-            </div>
-            <div class="space-y-4">
-                <input x-model="username" type="text" placeholder="Username" class="w-full p-5 bg-orange-50 border-2 border-transparent focus:border-orange-400 rounded-2xl outline-none transition-all">
-                <input x-model="password" type="password" placeholder="Password" class="w-full p-5 bg-orange-50 border-2 border-transparent focus:border-orange-400 rounded-2xl outline-none transition-all">
-                <button @click="handleLogin()" class="w-full cinema-gradient text-white font-black py-5 rounded-2xl shadow-lg hover:scale-105 active:scale-95 transition-all uppercase tracking-widest">Launch Dashboard</button>
-            </div>
-        </div>
-    </div>
-
-    <main x-show="page === 'dashboard'" x-cloak class="container mx-auto p-4 md:p-8 space-y-8">
+    <aside :class="sidebarOpen ? 'w-72' : 'w-20'" x-show="page !== 'login'" 
+           class="sidebar-bg text-slate-400 flex flex-col fixed h-full z-50 overflow-hidden shadow-2xl transition-all duration-300">
         
-        <div class="movie-banner w-full h-64 rounded-[2.5rem] p-8 flex flex-col justify-end shadow-2xl border-4 border-white">
-            <div class="glass-card p-6 rounded-2xl inline-block max-w-lg">
-                <h4 class="text-orange-600 font-black text-xs uppercase mb-1">Now Analyzing</h4>
-                <h1 class="text-4xl font-black text-slate-900 uppercase" x-text="selectedAnalyticMovie || 'All Movies Summary'"></h1>
-                <div class="flex gap-4 mt-2">
-                    <span class="text-sm font-bold text-slate-600"><i class="fa-solid fa-star text-orange-500 mr-1"></i> Global Stats</span>
-                    <span class="text-sm font-bold text-slate-600"><i class="fa-solid fa-clock text-orange-500 mr-1"></i> Real-time Sync</span>
+        <div class="p-6 border-b border-slate-800 flex items-center gap-4">
+            <div class="bg-indigo-600 p-2.5 rounded-xl shrink-0 shadow-lg shadow-indigo-500/20">
+                <i class="fa-solid fa-layer-group text-white"></i>
+            </div>
+            <div x-show="sidebarOpen" x-transition class="whitespace-nowrap">
+                <h1 class="text-xl font-bold text-white tracking-tight leading-none">DistriPro</h1>
+                <span class="text-[9px] font-black text-indigo-400 uppercase tracking-widest">Enterprise v2.0</span>
+            </div>
+        </div>
+
+        <nav class="flex-1 p-4 space-y-2 mt-4">
+            <button @click="section = 'home'" :class="section === 'home' ? 'active-link' : 'hover:bg-slate-800 hover:text-white'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition">
+                <i class="fa-solid fa-grid-2 w-5 text-center"></i> 
+                <span x-show="sidebarOpen" class="font-semibold text-sm">Main Dashboard</span>
+            </button>
+            <button @click="section = 'update'" :class="section === 'update' ? 'active-link' : 'hover:bg-slate-800 hover:text-white'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition">
+                <i class="fa-solid fa-database w-5 text-center"></i> 
+                <span x-show="sidebarOpen" class="font-semibold text-sm">Sync & Manual Entry</span>
+            </button>
+            <button x-show="userRole === 'admin'" @click="section = 'users'" :class="section === 'users' ? 'active-link' : 'hover:bg-slate-800 hover:text-white'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition">
+                <i class="fa-solid fa-user-shield w-5 text-center"></i> 
+                <span x-show="sidebarOpen" class="font-semibold text-sm">User Management</span>
+            </button>
+            <button @click="section = 'history'" :class="section === 'history' ? 'active-link' : 'hover:bg-slate-800 hover:text-white'" class="w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition">
+                <i class="fa-solid fa-chart-line w-5 text-center"></i> 
+                <span x-show="sidebarOpen" class="font-semibold text-sm">Historical Insights</span>
+            </button>
+        </nav>
+
+        <div x-show="sidebarOpen" x-transition class="p-6 bg-slate-900/50 space-y-4">
+            <div class="border-t border-slate-800 pt-4 text-[11px] text-slate-400 font-bold">
+                <p class="text-indigo-500 uppercase text-[9px] mb-2 tracking-widest">Support Line</p>
+                <div class="flex items-center gap-2 mb-1"><i class="fa-solid fa-phone"></i> 8019589448</div>
+                <div class="flex items-center gap-2"><i class="fa-solid fa-phone"></i> 7989208164</div>
+            </div>
+            <div class="space-y-1">
+                <p class="text-[9px] font-black text-indigo-500 uppercase tracking-widest">Technology Partner</p>
+                <p class="text-xs font-bold text-white">Vasavi Softtech Solutions</p>
+                <p class="text-[10px] italic text-slate-500">by KCMS Distributors</p>
+            </div>
+            <button @click="logout()" class="w-full py-3 bg-red-500/10 text-red-500 rounded-xl text-xs font-black uppercase hover:bg-red-500 hover:text-white transition">
+                <i class="fa-solid fa-power-off mr-2"></i> Logout
+            </button>
+        </div>
+    </aside>
+
+    <main class="flex-1 transition-all duration-300" :class="page !== 'login' ? (sidebarOpen ? 'ml-72' : 'ml-20') : ''">
+        
+        <div x-show="page === 'login'" class="flex items-center justify-center min-h-screen bg-slate-950 px-4">
+            <div class="bg-white p-12 rounded-[2.5rem] shadow-2xl w-full max-w-md border-t-8 border-indigo-600">
+                <div class="text-center mb-10">
+                    <h2 class="text-3xl font-black text-slate-900">DistriPro</h2>
+                    <p class="text-slate-400 text-sm font-semibold mt-1 uppercase tracking-widest">Enterprise Analytics</p>
+                </div>
+                <div class="space-y-5">
+                    <input x-model="login.user" type="text" placeholder="Username" class="w-full p-4.5 bg-slate-50 border rounded-2xl outline-none focus:ring-4 ring-indigo-50">
+                    <input x-model="login.pass" type="password" placeholder="Password" class="w-full p-4.5 bg-slate-50 border rounded-2xl outline-none focus:ring-4 ring-indigo-50">
+                    <button @click="handleLogin()" class="w-full bg-indigo-600 text-white font-bold py-5 rounded-2xl shadow-xl hover:bg-indigo-700 transition">Authenticate</button>
                 </div>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div class="bg-white p-6 rounded-3xl border-2 border-orange-100 shadow-xl">
-                <h4 class="text-xs font-black text-orange-500 uppercase mb-4">Select Movie to Focus</h4>
-                <select x-model="selectedAnalyticMovie" class="w-full p-4 rounded-2xl bg-orange-50 border-none shadow-inner outline-none font-bold text-slate-700">
-                    <option value="">Master View (All)</option>
-                    <template x-for="movie in [...new Set(reports.map(r => r.movie))]">
-                        <option :value="movie" x-text="movie"></option>
+        <div x-show="page === 'dashboard'" x-cloak>
+            <header class="bg-white/80 backdrop-blur-md border-b border-slate-200 px-10 py-6 sticky top-0 z-40 flex justify-between items-center">
+                <div class="flex items-center gap-6">
+                    <button @click="sidebarOpen = !sidebarOpen" class="text-slate-400 hover:text-indigo-600 text-xl"><i class="fa-solid fa-bars-staggered"></i></button>
+                    <div>
+                        <h2 class="text-2xl font-extrabold text-slate-900 capitalize leading-none" x-text="section.replace('-', ' ')"></h2>
+                        <span class="text-[10px] font-bold text-indigo-500 uppercase tracking-widest" x-text="'Role: ' + userRole"></span>
+                    </div>
+                </div>
+                <div x-show="isLoading" class="animate-spin h-5 w-5 border-2 border-indigo-600 border-t-transparent rounded-full"></div>
+            </header>
+
+            <section x-show="section === 'home'" class="p-10 space-y-10">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                    <template x-for="movie in uniqueMovies">
+                        <div @click="selectedMovie = movie" :class="selectedMovie === movie ? 'ring-4 ring-indigo-500' : 'border-slate-200'" 
+                             class="movie-card bg-white p-5 rounded-[2rem] border transition cursor-pointer shadow-sm group">
+                            <div class="aspect-video bg-indigo-50 rounded-2xl mb-4 flex items-center justify-center text-indigo-300 text-4xl">
+                                <i class="fa-solid fa-film"></i>
+                            </div>
+                            <h4 class="text-lg font-extrabold text-slate-800 uppercase" x-text="movie"></h4>
+                        </div>
                     </template>
-                </select>
-            </div>
-            <div class="cinema-gradient p-6 rounded-3xl shadow-xl flex flex-col justify-center transform hover:rotate-1 transition">
-                <p class="text-[10px] font-black text-white/80 uppercase">Total Tickets Booked</p>
-                <h2 class="text-5xl font-black text-white" x-text="movieStats.booked">0</h2>
-            </div>
-            <div class="bg-white p-6 rounded-3xl border-b-8 border-orange-500 shadow-xl flex flex-col justify-center">
-                <p class="text-[10px] font-black text-slate-400 uppercase">Screen Presence</p>
-                <h2 class="text-5xl font-black text-orange-600" x-text="movieStats.screens">0</h2>
-            </div>
-        </div>
-
-        <div x-show="userRole === 'admin'" class="bg-white p-8 rounded-[3rem] shadow-xl border border-orange-100">
-            <h3 class="font-black text-orange-600 mb-6 flex items-center gap-2 uppercase tracking-widest text-sm">
-                <i class="fa-solid fa-bolt animate-bounce"></i> Push Live Data
-            </h3>
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div class="flex flex-col">
-                    <label class="text-[10px] font-black mb-1 ml-1 text-slate-500 uppercase">Show Date</label>
-                    <input x-model="newEntry.date" type="date" class="bg-orange-50 p-4 rounded-2xl outline-none focus:ring-2 ring-orange-400">
                 </div>
-                
-                <div class="flex flex-col">
-                    <label class="text-[10px] font-black mb-1 ml-1 text-slate-500 uppercase">Cinema Hub</label>
-                    <select x-model="newEntry.theater" @change="updateCapacity()" class="bg-orange-50 p-4 rounded-2xl outline-none">
-                        <option value="">Select Theater</option>
-                        <template x-for="t in Object.keys(masterTheaters)">
-                            <option :value="t" x-text="t"></option>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+                    <div class="bg-indigo-600 p-8 rounded-[2.5rem] text-white shadow-xl shadow-indigo-100 flex flex-col justify-between h-44">
+                        <p class="text-[10px] font-black uppercase tracking-widest opacity-70">Total Bookings</p>
+                        <h2 class="text-5xl font-black" x-text="movieStats.booked"></h2>
+                    </div>
+                    <div class="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col justify-between h-44">
+                        <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Unique Screens</p>
+                        <h2 class="text-5xl font-black text-slate-800" x-text="movieStats.screens"></h2>
+                    </div>
+                    <div class="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm flex flex-col justify-between h-44">
+                        <p class="text-[10px] font-black uppercase tracking-widest text-slate-400">Avg Occupancy</p>
+                        <h2 class="text-5xl font-black text-indigo-500" x-text="Math.round((movieStats.booked / (movieStats.total || 1)) * 100) + '%'"></h2>
+                    </div>
+                </div>
+            </section>
+
+            <section x-show="section === 'update'" class="p-10 max-w-6xl mx-auto space-y-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                    <div class="bg-white rounded-[2.5rem] border border-slate-200 p-10 shadow-sm">
+                        <h3 class="text-xl font-black mb-6">Auto API Sync</h3>
+                        <div class="space-y-4">
+                            <input x-model="extraction.movie" placeholder="Movie Name" class="w-full p-4 bg-slate-50 border rounded-2xl outline-none">
+                            <input x-model="extraction.theater" placeholder="Theater Name" class="w-full p-4 bg-slate-50 border rounded-2xl outline-none">
+                            <button @click="alert('Triggering API...')" class="w-full bg-indigo-600 text-white font-bold py-5 rounded-2xl">Start Extraction</button>
+                        </div>
+                    </div>
+                    <div class="bg-slate-900 rounded-[2.5rem] p-10 text-white shadow-2xl">
+                        <h3 class="text-xl font-black mb-6">Manual Override</h3>
+                        <div class="grid grid-cols-2 gap-4">
+                            <input x-model="manual.movie" placeholder="Movie" class="col-span-2 p-4 bg-slate-800 border-none rounded-2xl text-white outline-none">
+                            <input x-model="manual.theater" placeholder="Theater" class="p-4 bg-slate-800 border-none rounded-2xl text-white outline-none">
+                            <input x-model="manual.booked" type="number" placeholder="Booked" class="p-4 bg-slate-800 border-none rounded-2xl text-white outline-none">
+                            <button @click="saveManual()" class="col-span-2 bg-emerald-500 text-white font-bold py-5 rounded-2xl">Push Manual Data</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section x-show="section === 'users'" class="p-10 max-w-5xl mx-auto space-y-10">
+                <div class="bg-white rounded-[2.5rem] border border-slate-200 p-10">
+                    <h3 class="text-xl font-black mb-8 text-slate-800">Global Access Control</h3>
+                    <div class="flex gap-4 mb-10 pb-10 border-b">
+                        <input x-model="newUser.name" placeholder="New Username" class="flex-1 p-4 bg-slate-50 border rounded-2xl outline-none">
+                        <input x-model="newUser.pass" placeholder="Password" class="flex-1 p-4 bg-slate-50 border rounded-2xl outline-none">
+                        <button @click="addUser()" class="bg-indigo-600 text-white px-8 rounded-2xl font-bold">Add to Cloud</button>
+                    </div>
+                    <div class="space-y-4">
+                        <template x-for="u in appUsers">
+                            <div class="flex items-center justify-between p-6 bg-slate-50 rounded-[2rem] border">
+                                <div class="flex items-center gap-5">
+                                    <div class="h-12 w-12 bg-white rounded-full flex items-center justify-center shadow-sm text-indigo-600 font-black" x-text="u.name[0].toUpperCase()"></div>
+                                    <div class="font-bold text-slate-900 uppercase" x-text="u.name"></div>
+                                </div>
+                                <div class="flex items-center gap-4">
+                                    <span class="text-xs font-bold text-slate-400" x-text="u.pass"></span>
+                                    <button @click="deleteUser(u.name)" class="text-red-400 p-2"><i class="fa-solid fa-trash-can"></i></button>
+                                </div>
+                            </div>
                         </template>
-                    </select>
+                    </div>
                 </div>
+            </section>
 
-                <div class="flex flex-col">
-                    <label class="text-[10px] font-black mb-1 ml-1 text-slate-500 uppercase">Screen No</label>
-                    <select x-model="newEntry.screen" @change="updateCapacity()" class="bg-orange-50 p-4 rounded-2xl outline-none">
-                        <option value="">Select Screen</option>
-                        <template x-if="newEntry.theater">
-                            <template x-for="s in Object.keys(masterTheaters[newEntry.theater])">
-                                <option :value="s" x-text="s"></option>
-                            </template>
-                        </template>
-                    </select>
-                </div>
-
-                <div class="flex flex-col">
-                    <label class="text-[10px] font-black mb-1 ml-1 text-slate-500 uppercase">Show Time</label>
-                    <input x-model="newEntry.time" @change="updateSlot()" type="time" class="bg-orange-50 p-4 rounded-2xl outline-none">
-                </div>
-
-                <input x-model="newEntry.movie" type="text" placeholder="Enter Movie Name" class="bg-orange-50 p-4 rounded-2xl outline-none">
-                <input x-model="newEntry.city" type="text" placeholder="City Name" class="bg-orange-50 p-4 rounded-2xl outline-none">
-                
-                <div class="p-4 bg-orange-100 rounded-2xl border-2 border-orange-200">
-                    <span class="text-[9px] font-black block uppercase text-orange-700">Total Capacity</span>
-                    <input x-model="newEntry.total" type="number" class="bg-transparent font-black text-xl w-full outline-none">
-                </div>
-
-                <div class="p-4 bg-yellow-400 rounded-2xl border-2 border-orange-500">
-                    <span class="text-[9px] font-black block uppercase text-orange-900">Seats Filled</span>
-                    <input x-model="newEntry.booked" type="number" class="bg-transparent font-black text-xl w-full outline-none text-orange-900">
-                </div>
-
-                <button @click="saveEntry()" class="md:col-span-4 cinema-gradient text-white font-black py-5 rounded-2xl hover:brightness-110 shadow-lg uppercase tracking-[0.2em] text-sm mt-2">
-                    Update Cloud Stats <i class="fa-solid fa-cloud-upload-alt ml-2"></i>
-                </button>
-            </div>
-        </div>
-
-        <div class="bg-white rounded-[2.5rem] shadow-2xl border border-orange-100 overflow-hidden">
-            <div class="p-8 cinema-gradient flex justify-between items-center text-white">
-                <h2 class="font-black uppercase text-sm tracking-widest">Live Performance Feed</h2>
-                <button @click="loadData()" class="bg-white/20 hover:bg-white/30 p-2 rounded-full transition">
-                    <i class="fa-solid fa-rotate"></i>
-                </button>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left">
-                    <thead class="bg-orange-50 text-[10px] font-black text-orange-600 uppercase">
-                        <tr>
-                            <th class="p-6">Date & Time</th>
-                            <th class="p-6">Theatre</th>
-                            <th class="p-6">Movie</th>
-                            <th class="p-6">Occupancy</th>
-                            <th class="p-6">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-orange-50">
-                        <template x-for="r in reports">
-                            <tr class="hover:bg-orange-50/50 transition" x-show="!selectedAnalyticMovie || r.movie === selectedAnalyticMovie">
-                                <td class="p-6">
-                                    <div class="text-[11px] font-black text-slate-800" x-text="r.date"></div>
-                                    <div class="text-[10px] text-orange-500 font-bold uppercase" x-text="r.time"></div>
-                                </td>
-                                <td class="p-6">
-                                    <div class="font-black text-slate-800" x-text="r.theater"></div>
-                                    <div class="text-[10px] text-orange-400 font-bold uppercase" x-text="r.city + ' - ' + r.screen"></div>
-                                </td>
-                                <td class="p-6">
-                                    <div class="font-black text-slate-800 uppercase" x-text="r.movie"></div>
-                                    <div class="text-[10px] text-slate-400 font-bold italic" x-text="r.slot"></div>
-                                </td>
-                                <td class="p-6">
-                                    <div class="flex items-center gap-3">
-                                        <div class="text-lg font-black text-orange-600" x-text="Math.round((r.booked/r.total)*100) + '%'"></div>
-                                        <div class="flex-1 h-3 bg-slate-100 rounded-full overflow-hidden min-w-[80px]">
-                                            <div class="h-full cinema-gradient" :style="`width: ${(r.booked/r.total)*100}%`"></div>
-                                        </div>
-                                    </div>
-                                    <div class="text-[10px] font-bold text-slate-400 mt-1" x-text="r.booked + ' / ' + r.total + ' SEATS'"></div>
-                                </td>
-                                <td class="p-6 text-center">
-                                    <button x-show="userRole === 'admin'" @click="deleteEntry(r.id)" class="text-slate-300 hover:text-red-500 transition">
-                                        <i class="fa-solid fa-trash-can"></i>
-                                    </button>
-                                </td>
-                            </tr>
-                        </template>
-                    </tbody>
-                </table>
-            </div>
         </div>
     </main>
-    <footer x-show="page === 'dashboard'" x-cloak class="mt-12 bg-white border-t-8 border-orange-500 pt-10 pb-6 px-4">
-        <div class="container mx-auto">
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-8 pb-8 border-b border-slate-100">
-                
-                <div class="space-y-3">
-                    <h5 class="text-orange-600 font-black text-xs uppercase tracking-widest">Support Line</h5>
-                    <div class="flex items-center gap-3 text-slate-700">
-                        <i class="fa-solid fa-phone-volume text-orange-500"></i>
-                        <span class="font-bold tracking-tight">8019589448 / 7989208164</span>
-                    </div>
-                    <p class="text-[10px] text-slate-400 font-bold leading-tight uppercase">
-                        Available for technical assistance and distribution queries.
-                    </p>
-                </div>
 
-                <div class="space-y-3">
-                    <h5 class="text-orange-600 font-black text-xs uppercase tracking-widest">Technology Partner</h5>
-                    <div class="flex flex-col">
-                        <span class="text-slate-800 font-black text-lg leading-none">Vasavi Softtech</span>
-                        <span class="text-orange-500 font-bold text-sm tracking-tighter">Solutions Private Limited</span>
-                    </div>
-                    <div class="flex items-center gap-2 text-[10px] font-black text-slate-400 uppercase">
-                        <i class="fa-solid fa-code text-orange-400"></i>
-                        Developed & Maintained
-                    </div>
-                </div>
+    <script>
+        const API_BASE = "https://distriproapi-heghfdc4auh3gtdm.eastus-01.azurewebsites.net/api";
 
-                <div class="space-y-3">
-                    <h5 class="text-orange-600 font-black text-xs uppercase tracking-widest">Product Info</h5>
-                    <div class="flex items-center gap-2">
-                        <span class="bg-orange-100 text-orange-700 px-2 py-1 rounded-md text-[10px] font-black italic">DistriPro</span>
-                        <span class="text-slate-500 font-bold text-xs underline decoration-orange-300">by KCMS Distributors</span>
-                    </div>
-                    <p class="text-[10px] text-slate-400 leading-relaxed font-medium">
-                        A proprietary suite designed for high-precision cinema distribution tracking and real-time screen analytics.
-                    </p>
-                </div>
+        function appHandler() {
+            return {
+                sidebarOpen: true,
+                page: 'login',
+                section: 'home',
+                userRole: '',
+                isLoading: false,
+                selectedMovie: '',
+                login: { user: '', pass: '' },
+                extraction: { movie: '', theater: '' },
+                manual: { movie: '', theater: '', screen: 'Main', booked: '', total: 200 },
+                newUser: { name: '', pass: '', role: 'viewer' },
+                reports: [],
+                appUsers: [],
 
-            </div>
+                async initApp() {
+                    this.loadUsers();
+                },
 
-            <div class="mt-8">
-                <div class="bg-orange-50 p-4 rounded-2xl border border-orange-100">
-                    <h6 class="text-[9px] font-black text-orange-600 uppercase mb-1 underline">Terms & Conditions</h6>
-                    <p class="text-[9px] text-slate-500 leading-relaxed text-justify italic font-medium">
-                        This platform is intended for internal distribution tracking only. Data accuracy depends on user input. 
-                        Unauthorized access or misuse of data is strictly prohibited. KCMS Distributors holds rights to 
-                        modify or restrict access anytime. System activity is logged for security audits.
-                    </p>
-                </div>
-            </div>
+                async loadUsers() {
+                    try {
+                        const res = await fetch(`${API_BASE}/manageusers`);
+                        this.appUsers = await res.json();
+                        if (this.appUsers.length === 0) this.appUsers = [{name: 'admin', pass: '8019589448', role: 'admin'}];
+                    } catch (e) { console.error('User Sync Error'); }
+                },
 
-            <div class="mt-8 text-center">
-                <p class="text-[9px] font-black text-slate-300 uppercase tracking-[0.3em]">
-                    &copy; 2024 DistriPro Ultra | All Rights Reserved
-                </p>
-            </div>
-        </div>
-    </footer>
+                async addUser() {
+                    if (!this.newUser.name || !this.newUser.pass) return;
+                    await fetch(`${API_BASE}/manageusers`, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(this.newUser)
+                    });
+                    this.newUser = { name: '', pass: '', role: 'viewer' };
+                    await this.loadUsers();
+                },
+
+                handleLogin() {
+                    let u = this.appUsers.find(x => x.name === this.login.user && x.pass === this.login.pass);
+                    if (u) {
+                        this.userRole = u.role;
+                        this.page = 'dashboard';
+                        this.loadData();
+                    } else { alert('Access Denied'); }
+                },
+
+                async loadData() {
+                    this.isLoading = true;
+                    try {
+                        const res = await fetch(`${API_BASE}/syncdata`);
+                        this.reports = await res.json();
+                    } finally { this.isLoading = false; }
+                },
+
+                async saveManual() {
+                    this.isLoading = true;
+                    try {
+                        const payload = {...this.manual, date: new Date().toISOString().split('T')[0], screen: 'Main', time: '18:00', city: 'Chennai'};
+                        await fetch(`${API_BASE}/syncdata`, {
+                            method: 'POST',
+                            headers: {'Content-Type': 'application/json'},
+                            body: JSON.stringify(payload)
+                        });
+                        alert('Manual Data Synced!');
+                        await this.loadData();
+                    } finally { this.isLoading = false; }
+                },
+
+                logout() { this.page = 'login'; this.login = { user: '', pass: '' }; },
+                get uniqueMovies() { return [...new Set(this.reports.map(r => r.movie))]; },
+                get movieStats() {
+                    let f = this.selectedMovie ? this.reports.filter(r => r.movie === this.selectedMovie) : this.reports;
+                    return { booked: f.reduce((a,c) => a + c.booked, 0), total: f.reduce((a,c) => a + c.total, 0), screens: f.length };
+                }
+            }
+        }
+    </script>
 </body>
 </html>
